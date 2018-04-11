@@ -88,18 +88,6 @@ in
           chown -R ${cfg.user}:${cfg.group} "${cfg.dataDir}"
         }
 
-        # Copy the database skeleton files to /var/lib/plex/.skeleton
-        # See the the Nix expression for Plex's package for more information on
-        # why this is done.
-        install --owner ${cfg.user} --group ${cfg.group} -d "${cfg.dataDir}/.skeleton"
-        for db in "com.plexapp.plugins.library.db"; do
-            if [ ! -e  "${cfg.dataDir}/.skeleton/$db" ]; then
-              cp "${cfg.package}/usr/lib/plexmediaserver/Resources/base_$db" "${cfg.dataDir}/.skeleton/$db"
-            fi
-            chmod u+w "${cfg.dataDir}/.skeleton/$db"
-            chown ${cfg.user}:${cfg.group} "${cfg.dataDir}/.skeleton/$db"
-        done
-
         # If managePlugins is enabled, setup symlinks for plugins.
         ${optionalString cfg.managePlugins ''
           echo "Preparing plugin directory."
@@ -132,23 +120,24 @@ in
           done
         ''}
      '';
+
       serviceConfig = {
         Type = "simple";
         User = cfg.user;
         Group = cfg.group;
         PermissionsStartOnly = "true";
-        ExecStart = "\"${cfg.package}/usr/lib/plexmediaserver/Plex Media Server\"";
+        ExecStart = "${cfg.package}/bin/plexmediaserver";
         KillSignal = "SIGQUIT";
         Restart = "on-failure";
       };
+
       environment = {
-        PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR=cfg.dataDir;
-        PLEX_MEDIA_SERVER_HOME="${cfg.package}/usr/lib/plexmediaserver";
-        PLEX_MEDIA_SERVER_MAX_PLUGIN_PROCS="6";
-        PLEX_MEDIA_SERVER_TMPDIR="/tmp";
-        LD_LIBRARY_PATH="${cfg.package}/usr/lib/plexmediaserver";
-        LC_ALL="en_US.UTF-8";
-        LANG="en_US.UTF-8";
+        PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR = cfg.dataDir;
+        PLEX_MEDIA_SERVER_HOME = "${cfg.package}/usr/lib/plexmediaserver";
+        PLEX_MEDIA_SERVER_MAX_PLUGIN_PROCS = "6";
+        PLEX_MEDIA_SERVER_TMPDIR = "/tmp";
+        LC_ALL = "en_US.UTF-8";
+        LANG = "en_US.UTF-8";
       };
     };
 
