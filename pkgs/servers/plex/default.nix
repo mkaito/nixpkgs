@@ -1,80 +1,52 @@
-{ stdenv, fetchurl, rpmextract, glibc
-, dataDir ? "/var/lib/plex" # Plex's data directory must be baked into the package due to symlinks.
-, enablePlexPass ? false
-}:
+{ stdenv, fetchurl, buildFHSUserEnv, writeScript, rpmextract }:
 
 let
-  plexPass = throw "Plex pass has been removed at upstream's request; please unset nixpkgs.config.plex.pass";
-  plexpkg = if enablePlexPass then plexPass else {
-    version = "1.9.6.4429";
-    vsnHash = "23901a099";
+  name = "plexmediaserver-${version}";
+  version = "1.9.6.4429-23901a099";
+
+  rpm = fetchurl {
+    url = "https://downloads.plex.tv/plex-media-server/${version}/${name}.x86_64.rpm";
     sha256 = "0bmqf8b2d9h2h5q3n4ahs8y6a9aihj63rch7wd82rcr1l9xnqk9d";
   };
 
-in stdenv.mkDerivation rec {
-  name = "plex-${version}";
-  version = plexpkg.version;
-  vsnHash = plexpkg.vsnHash;
-  sha256 = plexpkg.sha256;
+  env = stdenv.mkDerivation {
+    inherit name;
+    nativeBuildInputs = [ rpmextract ];
+    buildCommand = ''
+      mkdir -p $out.tmp && cd $_
+      rpmextract ${rpm} && mv usr $out
 
-  src = fetchurl {
-    url = "https://downloads.plex.tv/plex-media-server/${version}-${vsnHash}/plexmediaserver-${version}-${vsnHash}.x86_64.rpm";
-    inherit sha256;
+      for f in $out/lib/plexmediaserver/Resources/com.plexapp.plugins.library.db; do
+        mv $f $f.ro
+        ln -s /$(basename $f).rw $f
+      done
+    '';
   };
+in
 
-  buildInputs = [ rpmextract glibc ];
+buildFHSUserEnv {
+  name = "plexmediaserver";
 
-  phases = [ "unpackPhase" "installPhase" "fixupPhase" "distPhase" ];
-
-  unpackPhase = ''
-    rpmextract $src
-  '';
-
-  installPhase = ''
-    install -d $out/usr/lib
-    cp -dr --no-preserve='ownership' usr/lib/plexmediaserver $out/usr/lib/
-
-    # Now we need to patch up the executables and libraries to work on Nix.
-    # Side note: PLEASE don't put spaces in your binary names. This is stupid.
-    for bin in "Plex Media Server"              \
-               "Plex DLNA Server"               \
-               "Plex Media Scanner"             \
-               "Plex Media Server Tests"        \
-               "Plex Relay"                     \
-               "Plex Script Host"               \
-               "Plex Transcoder"                \
-               "Plex Tuner Service"             ; do
-      patchelf --set-interpreter "${glibc.out}/lib/ld-linux-x86-64.so.2" "$out/usr/lib/plexmediaserver/$bin"
-      patchelf --set-rpath "$out/usr/lib/plexmediaserver" "$out/usr/lib/plexmediaserver/$bin"
-    done
-
-    find $out/usr/lib/plexmediaserver/Resources -type f -a -perm -0100 \
-        -print -exec patchelf --set-interpreter "${glibc.out}/lib/ld-linux-x86-64.so.2" '{}' \;
-
-    # executables need libstdc++.so.6
-    ln -s "${stdenv.lib.makeLibraryPath [ stdenv.cc.cc ]}/libstdc++.so.6" "$out/usr/lib/plexmediaserver/libstdc++.so.6"
-
-    # Our next problem is the "Resources" directory in /usr/lib/plexmediaserver.
-    # This is ostensibly a skeleton directory, which contains files that Plex
-    # copies into its folder in /var. Unfortunately, there are some SQLite
-    # databases in the directory that are opened at startup. Since these
-    # database files are read-only, SQLite chokes and Plex fails to start. To
-    # solve this, we keep the resources directory in the Nix store, but we
-    # rename the database files and replace the originals with symlinks to
-    # /var/lib/plex. Then, in the systemd unit, the base database files are
-    # copied to /var/lib/plex before starting Plex.
-    RSC=$out/usr/lib/plexmediaserver/Resources
-    for db in "com.plexapp.plugins.library.db"; do
-        mv $RSC/$db $RSC/base_$db
-        ln -s ${dataDir}/.skeleton/$db $RSC/$db
-    done
+  targetPkgs = pkgs: with pkgs; [ env ];
+  runScript = writeScript "run" ''
+    #!${stdenv.shell}
+    root=/usr/lib/plexmediaserver
+    db=$root/Resources/com.plexapp.plugins.library.db
+    cp $db.ro /$(basename $db).rw && chmod 755 $_
+    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$root $root/Plex\ Media\ Server
   '';
 
   meta = with stdenv.lib; {
     homepage = http://plex.tv/;
     license = licenses.unfree;
     platforms = platforms.linux;
-    maintainers = with stdenv.lib.maintainers; [ colemickens forkk thoughtpolice pjones lnl7 ];
+    maintainers = with stdenv.lib.maintainers; [
+      colemickens
+      forkk
+      lnl7
+      pjones
+      thoughtpolice
+    ];
     description = "Media / DLNA server";
     longDescription = ''
       Plex is a media server which allows you to store your media and play it
