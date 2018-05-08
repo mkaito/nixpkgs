@@ -81,10 +81,18 @@ in
       description = "Plex Media Server";
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
+      preStart = ''
+        mkdir -p /var/lib/plex
+        chown ${cfg.user}:${cfg.group} -R /var/lib/plex
+      '';
+      environment = {
+        PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR = "/var/lib/plex";
+      };
       serviceConfig = {
         Type = "simple";
         User = cfg.user;
         Group = cfg.group;
+        PermissionsStartOnly = true;
         ExecStart = "${cfg.package}/bin/plexmediaserver";
         KillSignal = "SIGQUIT";
         Restart = "on-failure";
