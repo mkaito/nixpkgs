@@ -16562,7 +16562,7 @@ with pkgs;
   });
 
   inherit (nodePackages) imapnotify;
-  
+
   # Impressive, formerly known as "KeyJNote".
   impressive = callPackage ../applications/office/impressive { };
 
@@ -21449,6 +21449,10 @@ with pkgs;
 
   wine-staging = lowPrio (winePackages.full.override {
     wineRelease = "staging";
+  });
+
+  wine-staging-nine = lowPrio (winePackages.full.override {
+    wineRelease = "nine";
   });
 
   winetricks = callPackage ../misc/emulators/wine/winetricks.nix {

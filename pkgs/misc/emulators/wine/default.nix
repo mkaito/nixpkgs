@@ -63,4 +63,10 @@ in if wineRelease == "staging" then
     wineUnstable = wine-build wineBuild "unstable";
   }
 else
+  if wineRelease == "nine" then
+    callPackage ./nine.nix {
+      inherit libtxc_dxtn_Name;
+      wineUnstable = wine-build wineBuild "unstable";
+    }
+  else
   wine-build wineBuild wineRelease

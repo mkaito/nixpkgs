@@ -62,4 +62,12 @@ in rec {
     repo = "winetricks";
     rev = version;
   };
+
+  nine = fetchFromGitHub rec {
+    inherit (unstable) version;
+    sha256 = "046cqvxyjxmrn9fpqv4fp2kh7hvxy0jpl5q6wsaxx38mczpsajfl";
+    owner = "sarnex";
+    repo = "wine-d3d9-patches";
+    rev = "wine-d3d9-${version}";
+  };
 }
