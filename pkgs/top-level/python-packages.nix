@@ -14877,6 +14877,10 @@ EOF
     wxGTK = pkgs.wxGTK30;
   };
 
+  wxPython40 = callPackage ../development/python-modules/wxPython/4.0.nix {
+    wxGTK = pkgs.wxGTK30;
+  };
+
   xcaplib = buildPythonPackage rec {
     pname = "python-xcaplib";
     name = "${pname}-${version}";
