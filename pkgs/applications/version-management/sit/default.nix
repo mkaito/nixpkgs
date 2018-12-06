@@ -1,16 +1,16 @@
-{ stdenv, fetchFromGitHub, rustPlatform, cmake, libzip, gnupg, 
+{ stdenv, fetchFromGitHub, rustPlatform, cmake, libzip, gnupg,
   # Darwin
   libiconv, CoreFoundation, Security }:
 
 rustPlatform.buildRustPackage rec {
   name = "sit-${version}";
-  version = "0.4.0";
+  version = "0.4.1";
 
   src = fetchFromGitHub {
     owner = "sit-fyi";
     repo = "sit";
     rev = "v${version}";
-    sha256 = "10ycs6vc7mfzxnxrki09xn974pcwh196h1pfnsds98x6r87hxkpn";
+    sha256 = "06xkhlfix0h6di6cnvc4blbj3mjy90scbh89dvywbx16wjlc79pf";
   };
 
   buildInputs = [ cmake libzip gnupg ] ++
